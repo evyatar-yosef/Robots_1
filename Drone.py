@@ -1,8 +1,10 @@
+import time
+
 import pygame
 import os
 import math  # Import for trigonometric calculations
 
-DRONE_SPEED = 3  # meters per second
+DRONE_SPEED = 2   # 10 pixeles per minute = 25 cm
 PIXEL_SIZE = 2.5 / 100  # 2.5 cm to meters
 MAX_DISTANCE_METERS = 1  # 2 meters
 MAX_DISTANCE_PIXELS = int(MAX_DISTANCE_METERS / PIXEL_SIZE)  # Convert meters to pixels
@@ -16,6 +18,7 @@ drone_image_path = os.path.join('drone.jpeg')  # Make sure the path is correct
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 YELLOW = (255, 255, 0)  # Color for painting pixels
+RED = (255,0,0)
 
 class Drone:
     def __init__(self, x, y, map_image):
@@ -28,10 +31,27 @@ class Drone:
         self.drone_image = pygame.transform.scale(self.drone_image, (15, 15))
         self.update_center()  # Update center coordinates upon initialization
         self.last_direction = None  # Variable to store the last direction
-        
+        self.start_time = time.time()
+        self.move_history = []
+        self.return_home = False
 
     def draw(self, screen):
+        # Draw drone on screen...
         screen.blit(self.drone_image, (self.x, self.y))
+
+        # Render orientation text
+        font = pygame.font.SysFont(None, 25)
+        orientation_text = font.render(f"Orientation: {self.last_direction}", True, RED)
+        screen.blit(orientation_text, (50, 280))
+
+        # Calculate and render time of flight
+        elapsed_time = round(time.time() - self.start_time, 2)
+        time_text = font.render(f"Time of Flight: {elapsed_time} s", True, RED)
+        screen.blit(time_text, (50, 300))
+
+        # Render current position
+        position_text = font.render(f"Position: ({self.x}, {self.y})", True, RED)
+        screen.blit(position_text, (50, 320))
 
     def update_center(self):
         self.center_x = self.x + self.drone_image.get_width() // 2
@@ -113,7 +133,7 @@ class Drone:
                             break
 
 
-        if self.last_direction and not chosen_move:
+        if not chosen_move:
             print("333333333333")
             for move in unvisited_moves:
                 if move[0] == self.last_direction:
@@ -138,11 +158,25 @@ class Drone:
             self.visited.add((self.x, self.y))
             self.update_center()  # Update center coordinates after moving
             self.last_direction = chosen_move[0]  # Update last direction
+            self.move_history.append((self.x,self.y))
             print(f"Moving {chosen_move[0]} to ({self.x}, {self.y})")
             return True
         else:
             print("No valid move found, drone is stuck.")
             return False
+
+    def go_home(self):
+        self.return_home = True
+
+    def go_home_step(self):
+        if self.return_home and self.move_history:
+            # Pop the last move from the history and move the drone to that position
+            last_position = self.move_history.pop()
+            self.x, self.y = last_position
+            self.update_center()
+            print(f"Returning to ({self.x}, {self.y})")
+            if not self.move_history:
+                self.return_home = False  # Stop returning home when the history is empty
 
 
 class Painter:

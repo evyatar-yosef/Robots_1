@@ -66,18 +66,28 @@ class Simulation:
         return pixel_colors
 
     def run(self):
-        while self.running and (time.time() - self.start_time) < MAX_FLY_TIME:
+        while self.running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
 
-            # Continue frame sense
-            self.drone.move(self.pixel_colors)
-            self.painter.paint(self.map_image, self.drone)  # Paint the pixels around the drone
+            elapsed_time = time.time() - self.start_time
+
+            if elapsed_time < MAX_FLY_TIME / 2:
+                # Continue normal operation
+                self.drone.move(self.pixel_colors)
+                self.painter.paint(self.map_image, self.drone)  # Paint the pixels around the drone
+            else:
+                # Go home operation
+                if not self.drone.return_home:
+                    self.drone.go_home()  # Set the flag to start going home
+                self.drone.go_home_step()  # Move one step towards home
+
             self.update_display()
             self.clock.tick(10)  # 10 Hz sensor update rate
 
         pygame.quit()
+
 
     def update_display(self):
         self.screen.fill(WHITE)
