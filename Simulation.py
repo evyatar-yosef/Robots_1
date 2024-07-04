@@ -1,5 +1,3 @@
-# simulation.py
-
 import pygame
 import os
 import time
@@ -13,28 +11,34 @@ MAP_IMAGE_PATH = os.path.join('p14.png')
 # Colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
+GREEN = (0, 255, 0)
 
-MAX_FLY_TIME = 8 * 60  # 8 min in sec
+MAX_FLY_TIME = 2 * 60  # 8 min in sec
+
 
 class Simulation:
-    def __init__(self):  # Corrected method name
+    def __init__(self):
+        pygame.init()
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.set_caption("Drone Simulation")
 
         self.map_image = pygame.image.load(MAP_IMAGE_PATH)
         self.map_image = pygame.transform.scale(self.map_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
-
-        self.drone = Drone(80, 80, self.map_image)  # Initialize drone with starting position (80, 80)
+        self. xstart = 80
+        self. ystart = 80
+        self.drone = Drone(self.xstart, self.ystart, self.map_image,MAX_FLY_TIME)  # Initialize drone with starting position (80, 80)
 
         self.painter = Painter()  # Initialize the painter
 
         self.clock = pygame.time.Clock()
         self.start_time = time.time()
         self.running = True
-
         # Create a 2D array representing the color of each pixel on the map
         self.pixel_colors = self.create_pixel_color_array()
-        print(self.pixel_colors[100][100])
+
+        # Initialize buttons for vertical movement
+        self.up_button_rect = pygame.Rect(50, 50, 100, 50)  # Rect for up button
+        self.down_button_rect = pygame.Rect(50, 150, 100, 50)  # Rect for down button
 
     def create_pixel_color_array(self):
         # Get the dimensions (width and height) of the map image
@@ -42,6 +46,10 @@ class Simulation:
 
         # Initialize an empty list to store the color values of each pixel
         pixel_colors = []
+
+        # Define exact color values for white and black
+        WHITE = (255, 255, 255)
+        BLACK = (0, 0, 0)
 
         # Loop over each row (y-coordinate) of the image
         for y in range(height):
@@ -51,16 +59,25 @@ class Simulation:
             # Loop over each column (x-coordinate) of the image
             for x in range(width):
                 # Get the color of the pixel at position (x, y)
-                pixel_color = self.map_image.get_at((x, y))
+                pixel_color = self.map_image.get_at((x, y))[:3]  # Get the RGB values only
 
                 # Convert the pixel color to a single number (0 for white, 1 for black)
-                pixel_value = 0 if pixel_color == WHITE else 1
+                if pixel_color == WHITE:
+                    pixel_value = 0
+                elif pixel_color == BLACK:
+                    pixel_value = 1
+                else:
+                    pixel_value = 0  # Default to obstacle for any other color
 
                 # Add the pixel value to the current row
                 row_colors.append(pixel_value)
 
             # Add the current row to the list of pixel colors
             pixel_colors.append(row_colors)
+
+        # Print the pixel colors array for debugging
+        for y, row in enumerate(pixel_colors):
+            print(f"Row {y}: {' '.join(map(str, row))}")
 
         # Return the 2D list of pixel colors
         return pixel_colors
@@ -70,6 +87,17 @@ class Simulation:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_UP:
+                        self.drone.z -= 1  # Increase z-axis value
+                    elif event.key == pygame.K_DOWN:
+                        self.drone.z += 1  # Decrease z-axis value
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button == 1:  # Left mouse button
+                        if self.up_button_rect.collidepoint(event.pos):
+                            self.drone.z -= 1  # Increase z-axis value
+                        elif self.down_button_rect.collidepoint(event.pos):
+                            self.drone.z += 1  # Decrease z-axis value
 
             elapsed_time = time.time() - self.start_time
 
@@ -80,19 +108,45 @@ class Simulation:
             else:
                 # Go home operation
                 if not self.drone.return_home:
-                    self.drone.go_home()  # Set the flag to start going home
+                    self.drone.go_home(self.pixel_colors, MAX_FLY_TIME)  # Set the flag to start going home
                 self.drone.go_home_step()  # Move one step towards home
+
+                # Check if drone is at the start point to recharge
+                if self.drone.x == self.xstart and self.drone.y == self.ystart:
+                    self.drone.recharge_battery()
+                    if self.drone.battery == 100.0:
+                        self.drone.battery == 100.0
+                        self.drone.draw(self.screen)
+                        self.update_display()
+                        pygame.display.flip()
+                        time.sleep(1)
+
+                        self.start_time = time.time()
+                        self.drone.move(self.pixel_colors)  # Resume exploration after recharge
 
             self.update_display()
             self.clock.tick(10)  # 10 Hz sensor update rate
 
         pygame.quit()
 
-
     def update_display(self):
         self.screen.fill(WHITE)
         self.screen.blit(self.map_image, (0, 0))
         self.drone.draw(self.screen)
-        print("Drone pos(", self.drone.x, ",", self.drone.y, ")")
+
+
+
+    # Draw buttons
+        pygame.draw.rect(self.screen, GREEN, self.up_button_rect)
+        pygame.draw.rect(self.screen, GREEN, self.down_button_rect)
+
+        # Button text
+        font = pygame.font.SysFont(None, 30)
+        up_text = font.render('UP', True, BLACK)
+        down_text = font.render('DOWN', True, BLACK)
+        self.screen.blit(up_text, (self.up_button_rect.centerx - up_text.get_width() // 2,
+                                   self.up_button_rect.centery - up_text.get_height() // 2))
+        self.screen.blit(down_text, (self.down_button_rect.centerx - down_text.get_width() // 2,
+                                     self.down_button_rect.centery - down_text.get_height() // 2))
 
         pygame.display.flip()
