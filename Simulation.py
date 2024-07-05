@@ -1,7 +1,9 @@
 import pygame
 import os
 import time
-from Drone import Drone, Painter  # Import the Drone and Painter classes
+import random
+
+from Robots_1.Drone import Drone, Painter
 
 # Screen dimensions
 SCREEN_WIDTH = 1400
@@ -11,6 +13,7 @@ MAP_IMAGE_PATH = os.path.join('p14.png')
 # Colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
+BLUE = (0, 0, 255)  # Define blue color
 GREEN = (0, 255, 0)
 
 MAX_FLY_TIME = 2 * 60  # 8 min in sec
@@ -24,15 +27,16 @@ class Simulation:
 
         self.map_image = pygame.image.load(MAP_IMAGE_PATH)
         self.map_image = pygame.transform.scale(self.map_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
-        self. xstart = 80
-        self. ystart = 80
-        self.drone = Drone(self.xstart, self.ystart, self.map_image,MAX_FLY_TIME)  # Initialize drone with starting position (80, 80)
+        self.xstart = 80
+        self.ystart = 80
+        self.drone = Drone(self.xstart, self.ystart, self.map_image, MAX_FLY_TIME,self.screen,self)  # Initialize drone with starting position (80, 80)
 
         self.painter = Painter()  # Initialize the painter
 
         self.clock = pygame.time.Clock()
         self.start_time = time.time()
         self.running = True
+
         # Create a 2D array representing the color of each pixel on the map
         self.pixel_colors = self.create_pixel_color_array()
 
@@ -46,10 +50,6 @@ class Simulation:
 
         # Initialize an empty list to store the color values of each pixel
         pixel_colors = []
-
-        # Define exact color values for white and black
-        WHITE = (255, 255, 255)
-        BLACK = (0, 0, 0)
 
         # Loop over each row (y-coordinate) of the image
         for y in range(height):
@@ -75,9 +75,21 @@ class Simulation:
             # Add the current row to the list of pixel colors
             pixel_colors.append(row_colors)
 
-        # Print the pixel colors array for debugging
-        for y, row in enumerate(pixel_colors):
-            print(f"Row {y}: {' '.join(map(str, row))}")
+        # Add blue obstacles
+        num_blue_obstacles = 50
+        obstacle_size = 20
+
+        for _ in range(num_blue_obstacles):
+            placed = False
+            while not placed:
+                x = random.randint(0, width - obstacle_size)
+                y = random.randint(0, height - obstacle_size)
+                if all(pixel_colors[j][i] == 0 for i in range(x, x + obstacle_size) for j in range(y, y + obstacle_size)):
+                    for i in range(x, x + obstacle_size):
+                        for j in range(y, y + obstacle_size):
+                            pixel_colors[j][i] = 2  # Assuming blue is represented by 2
+                    pygame.draw.rect(self.map_image, BLUE, (x, y, obstacle_size, obstacle_size))
+                    placed = True
 
         # Return the 2D list of pixel colors
         return pixel_colors
@@ -110,6 +122,7 @@ class Simulation:
                 if not self.drone.return_home:
                     self.drone.go_home(self.pixel_colors, MAX_FLY_TIME)  # Set the flag to start going home
                 self.drone.go_home_step()  # Move one step towards home
+                self.painter.paint(self.map_image, self.drone)  # Paint the pixels around the drone
 
                 # Check if drone is at the start point to recharge
                 if self.drone.x == self.xstart and self.drone.y == self.ystart:
@@ -132,21 +145,10 @@ class Simulation:
     def update_display(self):
         self.screen.fill(WHITE)
         self.screen.blit(self.map_image, (0, 0))
+
         self.drone.draw(self.screen)
 
-
-
-    # Draw buttons
-        pygame.draw.rect(self.screen, GREEN, self.up_button_rect)
-        pygame.draw.rect(self.screen, GREEN, self.down_button_rect)
-
-        # Button text
-        font = pygame.font.SysFont(None, 30)
-        up_text = font.render('UP', True, BLACK)
-        down_text = font.render('DOWN', True, BLACK)
-        self.screen.blit(up_text, (self.up_button_rect.centerx - up_text.get_width() // 2,
-                                   self.up_button_rect.centery - up_text.get_height() // 2))
-        self.screen.blit(down_text, (self.down_button_rect.centerx - down_text.get_width() // 2,
-                                     self.down_button_rect.centery - down_text.get_height() // 2))
+        # Draw buttons
 
         pygame.display.flip()
+

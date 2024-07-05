@@ -5,6 +5,7 @@ import os
 import math
 import time  # Import for time calculations
 
+
 DRONE_SPEED = 2   # 10 pixels per minute = 25 cm
 PIXEL_SIZE = 2.5 / 100  # 2.5 cm to meters
 MAX_DISTANCE_METERS = 1  # 2 meters
@@ -16,16 +17,18 @@ SCREEN_HEIGHT = 800
 
 drone_image_path = os.path.join('drone.jpeg')  # Make sure the path is correct
 
+# Colors for painting pixels
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-YELLOW = (255, 255, 0)  # Color for painting pixels
+YELLOW = (255, 255, 0)
 RED = (255, 0, 0)
+BLUE = (0, 0, 255)
 
 class Drone:
-    def __init__(self, x, y, map_image, max_fly_time):
+    def __init__(self, x, y, map_image, max_fly_time,screen,simulation):
         self.x = x
         self.y = y
-        self.z = 0  # Initialize z value as zero
+        self.z = 1  # Initialize z value as zero
         self.map_image = map_image
         self.visited = set()  # Set to keep track of visited coordinates
         self.visited.add((self.x, self.y, self.z))  # Mark the starting position as visited
@@ -40,6 +43,9 @@ class Drone:
         self.max_fly_time = max_fly_time
         self.battery_decrease_rate = max_fly_time / 100.0
         self.isrecharged = False
+        self.screen = screen
+        self.simulation = simulation
+
 
     def draw(self, screen):
         screen.blit(self.drone_image, (self.x, self.y))
@@ -55,7 +61,8 @@ class Drone:
         screen.blit(time_text, (50, 300))
 
         # Render current position
-        position_text = font.render(f"Position: ({self.x}, {self.y}, {self.z})", True, RED)
+        position_text = font.render(f"Position: ({self.x}, {self.y}, {self.z} ,{self.z} ) ", True, RED)
+
         screen.blit(position_text, (50, 320))
         # Render battery percentage
         battery_text = font.render(f"Battery: {int(self.battery)}%", True, RED)
@@ -83,6 +90,7 @@ class Drone:
             ("left", (self.x - DRONE_SPEED, self.y)),
         ]
 
+
         valid_moves = []
         for direction, (new_x, new_y) in possible_moves:
             obstacle_free = True
@@ -94,6 +102,21 @@ class Drone:
                     if pixel_colors[ny_pixel][nx_pixel] == 1:
                         obstacle_free = False
                         break
+                    elif pixel_colors[ny_pixel][nx_pixel] == 2:  # Check for blue object pixels
+                        # Fly over the blue object by incrementing z until clear
+                        while pixel_colors[ny_pixel][nx_pixel] == 2 and self.z < 2:  # Assuming 10 is the maximum height
+                            self.z += 1
+
+                        self.simulation.update_display()
+                        print(f"Flying over blue object at ({nx_pixel}, {ny_pixel}), z = {self.z}")
+
+                # Check if flying over blue object is complete, then return to original height
+                if self.z >= 1 and pixel_colors[ny_pixel][nx_pixel] != 2:
+                    self.z -= 1
+
+                  #  self.simulation.update_display()
+
+                print(f"Returning to original height after flying over blue object, z = {self.z}")
 
             if obstacle_free:
                 valid_moves.append((direction, (new_x, new_y)))
@@ -282,9 +305,8 @@ class Painter:
                 ny_pixel = int(round(drone.center_y - step * math.sin(math.radians(direction_angle))))  # Adjusted for y-axis inversion
                 if 0 <= nx_pixel < SCREEN_WIDTH and 0 <= ny_pixel < SCREEN_HEIGHT:
                     current_color = map_image.get_at((nx_pixel, ny_pixel))
-                    if current_color != BLACK:  # Avoid painting black pixels
+                    if current_color != BLACK and current_color != BLUE:  # Avoid painting black and blue pixels
                         map_image.set_at((nx_pixel, ny_pixel), YELLOW)
-
 
 
     # def go_home(self):
