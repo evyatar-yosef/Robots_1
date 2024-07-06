@@ -1,15 +1,13 @@
-from queue import PriorityQueue  # Correct import
-
+from queue import PriorityQueue
 import pygame
 import os
 import math
-import time  # Import for time calculations
-
+import time
 
 DRONE_SPEED = 2   # 10 pixels per minute = 25 cm
 PIXEL_SIZE = 2.5 / 100  # 2.5 cm to meters
 MAX_DISTANCE_METERS = 1  # 2 meters
-MAX_DISTANCE_PIXELS = int(MAX_DISTANCE_METERS / PIXEL_SIZE)  # Convert meters to pixels
+MAX_DISTANCE_PIXELS = int(MAX_DISTANCE_METERS  / PIXEL_SIZE)  # Convert meters to pixels
 
 # Screen dimensions
 SCREEN_WIDTH = 1400
@@ -24,11 +22,13 @@ YELLOW = (255, 255, 0)
 RED = (255, 0, 0)
 BLUE = (0, 0, 255)
 
+
 class Drone:
-    def __init__(self, x, y, map_image, max_fly_time,screen,simulation):
+
+    def __init__(self, x, y, map_image, max_fly_time, screen, simulation):
         self.x = x
         self.y = y
-        self.z = 1  # Initialize z value as zero
+        self.z = 1  # Initialize z value as 1
         self.map_image = map_image
         self.visited = set()  # Set to keep track of visited coordinates
         self.visited.add((self.x, self.y, self.z))  # Mark the starting position as visited
@@ -45,7 +45,7 @@ class Drone:
         self.isrecharged = False
         self.screen = screen
         self.simulation = simulation
-
+        self.goal = None  # Initialize goal for A*
 
     def draw(self, screen):
         screen.blit(self.drone_image, (self.x, self.y))
@@ -61,9 +61,9 @@ class Drone:
         screen.blit(time_text, (50, 300))
 
         # Render current position
-        position_text = font.render(f"Position: ({self.x}, {self.y}, {self.z} ,{self.z} ) ", True, RED)
-
+        position_text = font.render(f"Position: ({self.x}, {self.y}, {self.z})", True, RED)
         screen.blit(position_text, (50, 320))
+
         # Render battery percentage
         battery_text = font.render(f"Battery: {int(self.battery)}%", True, RED)
         screen.blit(battery_text, (50, 340))
@@ -78,7 +78,6 @@ class Drone:
             "down": 270,
             "right": 0,
             "left": 180,
-
         }
         return directions[direction_name]
 
@@ -89,7 +88,6 @@ class Drone:
             ("right", (self.x + DRONE_SPEED, self.y)),
             ("left", (self.x - DRONE_SPEED, self.y)),
         ]
-
 
         valid_moves = []
         for direction, (new_x, new_y) in possible_moves:
@@ -102,21 +100,6 @@ class Drone:
                     if pixel_colors[ny_pixel][nx_pixel] == 1:
                         obstacle_free = False
                         break
-                    elif pixel_colors[ny_pixel][nx_pixel] == 2:  # Check for blue object pixels
-                        # Fly over the blue object by incrementing z until clear
-                        while pixel_colors[ny_pixel][nx_pixel] == 2 and self.z < 2:  # Assuming 10 is the maximum height
-                            self.z += 1
-
-                        self.simulation.update_display()
-                        print(f"Flying over blue object at ({nx_pixel}, {ny_pixel}), z = {self.z}")
-
-                # Check if flying over blue object is complete, then return to original height
-                if self.z >= 1 and pixel_colors[ny_pixel][nx_pixel] != 2:
-                    self.z -= 1
-
-                  #  self.simulation.update_display()
-
-                print(f"Returning to original height after flying over blue object, z = {self.z}")
 
             if obstacle_free:
                 valid_moves.append((direction, (new_x, new_y)))
@@ -145,7 +128,7 @@ class Drone:
                 for move in unvisited_moves:
                     direction_angle = self.get_direction(move[0])
                     nx_pixel = int(round(self.center_x + (sensor_range + 8) * math.cos(math.radians(direction_angle))))
-                    ny_pixel = round(self.center_y - (sensor_range + 8) * math.sin(math.radians(direction_angle)))
+                    ny_pixel = int(round(self.center_y - (sensor_range + 8) * math.sin(math.radians(direction_angle))))  # Adjusted for y-axis inversion
                     if 0 <= nx_pixel < SCREEN_WIDTH and 0 <= ny_pixel < SCREEN_HEIGHT:
                         if pixel_colors[ny_pixel][nx_pixel] == 0:
                             chosen_move = move
@@ -175,12 +158,36 @@ class Drone:
             self.update_battery()
             self.last_direction = chosen_move[0]
             self.move_history.append((self.x, self.y, self.z))
+
+            # Adjust z value only when the drone reaches the new position
+            direction_angle = self.get_direction(self.last_direction)
+            for step in range(1, DRONE_SPEED + 1):
+                nx_pixel = int(round(self.center_x + step * math.cos(math.radians(direction_angle))))
+                ny_pixel = int(round(self.center_y - step * math.sin(math.radians(direction_angle))))  # Adjusted for y-axis inversion
+
+                if 0 <= nx_pixel < SCREEN_WIDTH and 0 <= ny_pixel < SCREEN_HEIGHT:
+                    # Check pixels directly in front of the drone
+                    check_x = nx_pixel
+                    check_y = ny_pixel
+
+                    if 0 <= check_x < SCREEN_WIDTH and 0 <= check_y < SCREEN_HEIGHT:
+                        if pixel_colors[check_y][check_x] == 2:
+                            # Fly over the blue object by incrementing z until clear
+                            while pixel_colors[check_y][check_x] == 2 and self.z < 2:  # Assuming 2 is the maximum height
+                                self.z += 1
+                                print(f"Flying over blue object at ({check_x}, {check_y}), z = {self.z}")
+                                break
+                        # Check if flying over blue object is complete, then return to original height
+                        if self.z >= 1 and pixel_colors[check_y][check_x] != 2:
+                            self.z -= 1
+                            print(f"Returning to original height after flying over blue object, z = {self.z}")
+                            break
+
             print(f"Moving {chosen_move[0]} to ({self.x}, {self.y}, {self.z})")
             return True
         else:
             print("No valid move found, drone is stuck.")
             return False
-
 
     def go_home(self, pixel_colors, total_flight_time):
         self.return_home = True
@@ -213,7 +220,7 @@ class Drone:
 
                 if 0 <= next_step[0] < SCREEN_WIDTH and 0 <= next_step[1] < SCREEN_HEIGHT:
                     # Check if next_step is within the extended sensor range
-                    if self.is_within_extended_sensor_range(next_step, sensor_range):
+                    if self.is_within_extended_sensor_range(next_step, sensor_range + 1):
                         if pixel_colors[next_step[1]][next_step[0]] != 1:  # Check if it's not an obstacle
                             new_cost = cost_so_far[current] + 1  # Assuming each step costs 1 for simplicity
 
@@ -273,9 +280,6 @@ class Drone:
             if not self.path_to_home:
                 self.return_home = False
 
-    # def manhattan_distance(pos1, pos2):
-    #     return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
-
     def update_battery(self):
         elapsed_time = time.time() - self.start_time
         if elapsed_time > self.max_fly_time:
@@ -286,7 +290,7 @@ class Drone:
 
         # Ensure battery doesn't go below 0
         if self.battery < 0:
-           self.battery = 0
+            self.battery = 0
 
     def recharge_battery(self):
         self.battery = 100.0

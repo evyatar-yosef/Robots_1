@@ -16,7 +16,7 @@ BLACK = (0, 0, 0)
 BLUE = (0, 0, 255)  # Define blue color
 GREEN = (0, 255, 0)
 
-MAX_FLY_TIME = 2 * 60  # 8 min in sec
+MAX_FLY_TIME = 3 * 60  # 8 min in sec
 
 
 class Simulation:
