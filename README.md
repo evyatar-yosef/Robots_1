@@ -58,7 +58,10 @@ Contains the `Drone` and `Painter` classes:
 
 - **Drone**: Handles the drone's movement, obstacle detection, and returning to the start position.
 - **Painter**: Responsible for painting the map based on the drone's exploration.
-- **Drone2**: same as drone but now the drone can also move in diagonals.
+- **Drone2**: same as drone but now the drone can also move in diagonals. - for usind drone2 yiu need to change this line in simulation.py
+          self.drone = Drone(self.xstart, self.ystart, self.map_image, MAX_FLY_TIME, self.screen, self)
+          to: self.drone = Drone2(self.xstart, self.ystart, self.map_image, MAX_FLY_TIME, self.screen, self)
+
 
 ## How It Works
 
