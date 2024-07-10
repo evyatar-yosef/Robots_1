@@ -17,7 +17,7 @@ BLUE = (0, 0, 255)  # Define blue color
 GREEN = (0, 255, 0)
 
 # Maximum flight time (8 minutes in seconds)
-MAX_FLY_TIME = 5 * 60
+MAX_FLY_TIME = 8 * 60
 
 class Simulation:
     def __init__(self):
