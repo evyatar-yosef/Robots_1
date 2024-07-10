@@ -24,7 +24,7 @@ RED = (255, 0, 0)
 BLUE = (0, 0, 255)
 
 
-class Drone:
+class Drone2:
 
     def __init__(self, x, y, map_image, max_fly_time, screen, simulation):
         self.x = x
@@ -92,10 +92,10 @@ class Drone:
             ("down", (self.x, self.y + DRONE_SPEED)),
             ("right", (self.x + DRONE_SPEED, self.y)),
             ("left", (self.x - DRONE_SPEED, self.y)),
-            # ("up-right", (self.x + DRONE_SPEED, self.y - DRONE_SPEED)),
-            # ("up-left", (self.x - DRONE_SPEED, self.y - DRONE_SPEED)),
-            # ("down-right", (self.x + DRONE_SPEED, self.y + DRONE_SPEED)),
-            # ("down-left", (self.x - DRONE_SPEED, self.y + DRONE_SPEED)),
+            ("up-right", (self.x + DRONE_SPEED, self.y - DRONE_SPEED)),
+            ("up-left", (self.x - DRONE_SPEED, self.y - DRONE_SPEED)),
+            ("down-right", (self.x + DRONE_SPEED, self.y + DRONE_SPEED)),
+            ("down-left", (self.x - DRONE_SPEED, self.y + DRONE_SPEED)),
         ]
 
         valid_moves = []
@@ -170,9 +170,7 @@ class Drone:
             self.last_direction = chosen_move[0]
             self.move_history.append((self.x, self.y, self.z))
 
-
-
-        # Adjust z value only when the drone reaches the new position
+            # Adjust z value only when the drone reaches the new position
             direction_angle = self.get_direction(self.last_direction)
             for step in range(1, DRONE_SPEED + 1):
                 for offset in range(-self.drone_image.get_width() // 2, self.drone_image.get_width() // 2 + 1):
@@ -186,7 +184,7 @@ class Drone:
                     if 0 <= nx_pixel < SCREEN_WIDTH and 0 <= ny_pixel < SCREEN_HEIGHT:
                         if pixel_colors[ny_pixel][nx_pixel] == 2:
                             # Fly over the blue object by incrementing z until clear
-                            while pixel_colors[ny_pixel][nx_pixel] == 2 and self.z < 1:  # Assuming 2 is the maximum height
+                            while pixel_colors[ny_pixel][nx_pixel] == 2 and self.z < 2:  # Assuming 2 is the maximum height
                                 self.z += 1
                                 print(f"Flying over blue object at ({nx_pixel}, {ny_pixel}), z = {self.z}")
                                 break
@@ -202,9 +200,10 @@ class Drone:
             print("No valid move found, drone is stuck.")
             return False
 
+
     def go_home(self, pixel_colors, total_flight_time):
         self.return_home = True
-    #    self.goal = (80, 80)  # Starting point as the goal
+        #    self.goal = (80, 80)  # Starting point as the goal
         self.battery_decrease_rate = total_flight_time / 100
         self.dynamic_a_star(pixel_colors)
 

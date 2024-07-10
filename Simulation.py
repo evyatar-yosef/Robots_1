@@ -4,6 +4,9 @@ import time
 import random
 
 from Robots_1.Drone import Drone, Painter
+from Robots_1.Drone2 import Drone2
+
+
 
 # Screen dimensions
 SCREEN_WIDTH = 1400
@@ -16,7 +19,7 @@ BLACK = (0, 0, 0)
 BLUE = (0, 0, 255)  # Define blue color
 GREEN = (0, 255, 0)
 
-MAX_FLY_TIME = 3 * 60  # 8 min in sec
+MAX_FLY_TIME = 8 * 60  # 8 min in sec
 
 
 class Simulation:
@@ -40,9 +43,6 @@ class Simulation:
         # Create a 2D array representing the color of each pixel on the map
         self.pixel_colors = self.create_pixel_color_array()
 
-        # Initialize buttons for vertical movement
-        self.up_button_rect = pygame.Rect(50, 50, 100, 50)  # Rect for up button
-        self.down_button_rect = pygame.Rect(50, 150, 100, 50)  # Rect for down button
 
     def create_pixel_color_array(self):
         # Get the dimensions (width and height) of the map image
@@ -99,17 +99,6 @@ class Simulation:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_UP:
-                        self.drone.z -= 1  # Increase z-axis value
-                    elif event.key == pygame.K_DOWN:
-                        self.drone.z += 1  # Decrease z-axis value
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    if event.button == 1:  # Left mouse button
-                        if self.up_button_rect.collidepoint(event.pos):
-                            self.drone.z -= 1  # Increase z-axis value
-                        elif self.down_button_rect.collidepoint(event.pos):
-                            self.drone.z += 1  # Decrease z-axis value
 
             elapsed_time = time.time() - self.start_time
 
@@ -121,7 +110,7 @@ class Simulation:
                 # Go home operation
                 if not self.drone.return_home:
                     self.drone.go_home(self.pixel_colors, MAX_FLY_TIME)  # Set the flag to start going home
-                self.drone.go_home_step()  # Move one step towards home
+                self.drone.go_home_step(self.pixel_colors)  # Move one step towards home
                 self.painter.paint(self.map_image, self.drone)  # Paint the pixels around the drone
 
                 # Check if drone is at the start point to recharge
@@ -147,8 +136,5 @@ class Simulation:
         self.screen.blit(self.map_image, (0, 0))
 
         self.drone.draw(self.screen)
-
-        # Draw buttons
-
         pygame.display.flip()
 
