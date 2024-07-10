@@ -54,20 +54,27 @@ class Drone:
         # Render orientation text
         font = pygame.font.SysFont(None, 25)
         orientation_text = font.render(f"Orientation: {self.last_direction}", True, RED)
-        screen.blit(orientation_text, (50, 280))
+        screen.blit(orientation_text, (70, 280))
 
         # Calculate and render time of flight
         elapsed_time = round(time.time() - self.start_time, 2)
         time_text = font.render(f"Time of Flight: {elapsed_time} s", True, RED)
-        screen.blit(time_text, (50, 300))
+        screen.blit(time_text, (70, 300))
 
         # Render current position
         position_text = font.render(f"Position: ({self.x}, {self.y}, {self.z})", True, RED)
-        screen.blit(position_text, (50, 320))
+        screen.blit(position_text, (70, 320))
 
         # Render battery percentage
         battery_text = font.render(f"Battery: {int(self.battery)}%", True, RED)
-        screen.blit(battery_text, (50, 340))
+        screen.blit(battery_text, (70, 340))
+
+        # Calculate yaw angle based on last direction
+        if self.last_direction:
+            yaw_angle = self.get_direction(self.last_direction)
+            yaw_text = font.render(f"Yaw: {yaw_angle}°", True, RED)
+            screen.blit(yaw_text, (70, 360))
+
 
     def update_center(self):
         self.center_x = self.x + self.drone_image.get_width() // 2
@@ -87,17 +94,15 @@ class Drone:
         return directions[direction_name]
 
     def move(self, pixel_colors, sensor_range=MAX_DISTANCE_PIXELS):
+        # Define possible moves with direction names and new positions based on current position and speed
         possible_moves = [
             ("up", (self.x, self.y - DRONE_SPEED)),
             ("down", (self.x, self.y + DRONE_SPEED)),
             ("right", (self.x + DRONE_SPEED, self.y)),
             ("left", (self.x - DRONE_SPEED, self.y)),
-            # ("up-right", (self.x + DRONE_SPEED, self.y - DRONE_SPEED)),
-            # ("up-left", (self.x - DRONE_SPEED, self.y - DRONE_SPEED)),
-            # ("down-right", (self.x + DRONE_SPEED, self.y + DRONE_SPEED)),
-            # ("down-left", (self.x - DRONE_SPEED, self.y + DRONE_SPEED)),
         ]
 
+        # List to hold valid moves that are obstacle-free
         valid_moves = []
         for direction, (new_x, new_y) in possible_moves:
             obstacle_free = True
@@ -106,18 +111,20 @@ class Drone:
                     nx_pixel = new_x + dx
                     ny_pixel = new_y + dy
                     if 0 <= nx_pixel < SCREEN_WIDTH and 0 <= ny_pixel < SCREEN_HEIGHT:
-                        if pixel_colors[ny_pixel][nx_pixel] == 1:  # Check if pixel is an obstacle (black pixel)
+                        # Check if the pixel is an obstacle (black pixel)
+                        if pixel_colors[ny_pixel][nx_pixel] == 1:
                             obstacle_free = False
                             break
                 if not obstacle_free:
                     break
 
+            # If no obstacles, add to valid moves
             if obstacle_free:
                 valid_moves.append((direction, (new_x, new_y)))
 
+        # Separate valid moves into unvisited and visited based on drone's visited set
         unvisited_moves = []
         visited_moves = []
-
         for move in valid_moves:
             if (move[1][0], move[1][1], self.z) not in self.visited:
                 unvisited_moves.append(move)
@@ -125,12 +132,13 @@ class Drone:
                 visited_moves.append(move)
 
         chosen_move = None
+        # Try to find an unvisited move in the last direction
         if self.last_direction:
             for move in unvisited_moves:
                 if move[0] == self.last_direction:
                     direction_angle = self.get_direction(move[0])
-                    nx_pixel = int(round(self.center_x + (sensor_range+8) * math.cos(math.radians(direction_angle))))  # Adjusted for x-axis inversion
-                    ny_pixel = int(round(self.center_y - (sensor_range+8) * math.sin(math.radians(direction_angle))))  # Adjusted for y-axis inversion
+                    nx_pixel = int(round(self.center_x + (sensor_range + 8) * math.cos(math.radians(direction_angle))))
+                    ny_pixel = int(round(self.center_y - (sensor_range + 8) * math.sin(math.radians(direction_angle))))
                     if 0 <= nx_pixel < SCREEN_WIDTH and 0 <= ny_pixel < SCREEN_HEIGHT:
                         if pixel_colors[ny_pixel][nx_pixel] != 1:
                             chosen_move = move
@@ -138,13 +146,14 @@ class Drone:
             if not chosen_move:
                 for move in unvisited_moves:
                     direction_angle = self.get_direction(move[0])
-                    nx_pixel = int(round(self.center_x + (sensor_range +8) * math.cos(math.radians(direction_angle))))
-                    ny_pixel = int(round(self.center_y - (sensor_range +8) * math.sin(math.radians(direction_angle))))  # Adjusted for y-axis inversion
+                    nx_pixel = int(round(self.center_x + (sensor_range + 8) * math.cos(math.radians(direction_angle))))
+                    ny_pixel = int(round(self.center_y - (sensor_range + 8) * math.sin(math.radians(direction_angle))))
                     if 0 <= nx_pixel < SCREEN_WIDTH and 0 <= ny_pixel < SCREEN_HEIGHT:
                         if pixel_colors[ny_pixel][nx_pixel] != 1:
                             chosen_move = move
                             break
 
+        # If no unvisited move found, try to find a visited move in the last direction
         if not chosen_move:
             for move in unvisited_moves:
                 if move[0] == self.last_direction:
@@ -156,12 +165,14 @@ class Drone:
                         chosen_move = move
                         break
 
+        # If no move found, choose any unvisited or visited move
         if not chosen_move:
             if unvisited_moves:
                 chosen_move = unvisited_moves[0]
             elif visited_moves:
                 chosen_move = visited_moves[0]
 
+        # Execute the chosen move if found
         if chosen_move:
             self.x, self.y = chosen_move[1]
             self.visited.add((self.x, self.y, self.z))
@@ -170,9 +181,7 @@ class Drone:
             self.last_direction = chosen_move[0]
             self.move_history.append((self.x, self.y, self.z))
 
-
-
-        # Adjust z value only when the drone reaches the new position
+            # Adjust z value when the drone reaches the new position
             direction_angle = self.get_direction(self.last_direction)
             for step in range(1, DRONE_SPEED + 1):
                 for offset in range(-self.drone_image.get_width() // 2, self.drone_image.get_width() // 2 + 1):
@@ -186,7 +195,7 @@ class Drone:
                     if 0 <= nx_pixel < SCREEN_WIDTH and 0 <= ny_pixel < SCREEN_HEIGHT:
                         if pixel_colors[ny_pixel][nx_pixel] == 2:
                             # Fly over the blue object by incrementing z until clear
-                            while pixel_colors[ny_pixel][nx_pixel] == 2 and self.z < 1:  # Assuming 2 is the maximum height
+                            while pixel_colors[ny_pixel][nx_pixel] == 2 and self.z < 2:  # Assuming 2 is the maximum height
                                 self.z += 1
                                 print(f"Flying over blue object at ({nx_pixel}, {ny_pixel}), z = {self.z}")
                                 break
@@ -203,19 +212,21 @@ class Drone:
             return False
 
     def go_home(self, pixel_colors, total_flight_time):
+        # Initiate the process to return home
         self.return_home = True
-    #    self.goal = (80, 80)  # Starting point as the goal
+        # Set the battery decrease rate based on the total flight time
         self.battery_decrease_rate = total_flight_time / 100
+        # Start the dynamic A* algorithm to find the path home
         self.dynamic_a_star(pixel_colors)
 
     def dynamic_a_star(self, pixel_colors, sensor_range=MAX_DISTANCE_PIXELS):
         start = (self.x, self.y)
         frontier = PriorityQueue()
-        frontier.put((0, start))
+        frontier.put((0, start))  # Priority queue to store frontier nodes with their priority
         came_from = {}
         cost_so_far = {}
-        came_from[start] = None
-        cost_so_far[start] = 0
+        came_from[start] = None  # To keep track of the path
+        cost_so_far[start] = 0  # To keep track of the cost
 
         def heuristic(a, b):
             """Manhattan distance heuristic."""
@@ -226,6 +237,7 @@ class Drone:
         while not frontier.empty():
             current_cost, current = frontier.get()
 
+            # If the goal is reached, exit the loop
             if current == self.goal:
                 break
 
@@ -234,21 +246,23 @@ class Drone:
                 next_step = (current[0] + dx, current[1] + dy)
 
                 if 0 <= next_step[0] < SCREEN_WIDTH and 0 <= next_step[1] < SCREEN_HEIGHT:
-                    # Directly check if the next step is not an obstacle (black pixel)
+                    # Check if the next step is not an obstacle (black pixel)
                     if pixel_colors[next_step[1]][next_step[0]] != 1:
                         new_cost = cost_so_far[current] + 1  # Assuming each step costs 1 for simplicity
 
+                        # If the next step is not in cost_so_far or the new cost is lower
                         if next_step not in cost_so_far or new_cost < cost_so_far[next_step]:
                             cost_so_far[next_step] = new_cost
                             priority = new_cost + heuristic(self.goal, next_step)
                             frontier.put((priority, next_step))
                             came_from[next_step] = current
 
-                            # Move to the next_step
+                            # Move to the next step
                             self.x, self.y = next_step
                             self.update_center()
                             print(f"Moving to ({self.x}, {self.y})")
 
+                # If the goal is reached during the iteration, exit the loop
                 if current == self.goal:
                     break
 
@@ -264,6 +278,7 @@ class Drone:
         while current != start:
             path.append(current)
             current = came_from.get(current)
+            # Check for error in path reconstruction
             if current is None:
                 print(f"Error: Path reconstruction failed. No parent for {current}.")
                 return []
@@ -271,6 +286,7 @@ class Drone:
         return path
 
     def go_home_step(self, pixel_colors):
+        # If the drone is returning home and there is a path to follow
         if self.return_home and self.path_to_home:
             next_position = self.path_to_home.pop(0)
             self.x, self.y = next_position
@@ -287,16 +303,24 @@ class Drone:
                 self.z = 0  # Return to original height
                 print(f"Returning to original height after flying over blue object, z = {self.z}")
 
+            # Update battery status
             self.update_battery()
             print(f"Returning to ({self.x}, {self.y}, {self.z})")
 
+            # If the path to home is empty, stop returning home
             if not self.path_to_home:
                 self.return_home = False
+
     def update_battery(self):
+        # Calculate the elapsed time since the start time
         elapsed_time = time.time() - self.start_time
+
+        # Check if the elapsed time exceeds the maximum flight time
         if elapsed_time > self.max_fly_time:
+            # If exceeded, set battery to 0
             self.battery = 0
         else:
+            # Otherwise, calculate the remaining time ratio and update the battery level
             remaining_time_ratio = (self.max_fly_time - elapsed_time) / self.max_fly_time
             self.battery = remaining_time_ratio * 100.0
 
@@ -305,22 +329,30 @@ class Drone:
             self.battery = 0
 
     def recharge_battery(self):
+        # Set battery level to 100%
         self.battery = 100.0
+        # Reset the start time to current time
         self.start_time = time.time()
         print("Battery recharged to 100%")
 
 
 class Painter:
     def __init__(self, sensor_range=MAX_DISTANCE_PIXELS):
+        # Initialize the sensor range for the painter
         self.sensor_range = sensor_range
 
     def paint(self, map_image, drone):
-        for direction_angle in range(0, 360, 1):  # Check in all directions
+        # Check in all directions (0 to 359 degrees)
+        for direction_angle in range(0, 360, 1):
+            # Check each step within the sensor range
             for step in range(1, self.sensor_range):
+                # Calculate the next pixel position based on the direction and step
                 nx_pixel = int(round(drone.center_x + step * math.cos(math.radians(direction_angle))))
                 ny_pixel = int(round(drone.center_y - step * math.sin(math.radians(direction_angle))))  # Adjusted for y-axis inversion
+
+                # Ensure the pixel is within the map boundaries
                 if 0 <= nx_pixel < SCREEN_WIDTH and 0 <= ny_pixel < SCREEN_HEIGHT:
                     current_color = map_image.get_at((nx_pixel, ny_pixel))
-                    if current_color != BLACK and current_color != BLUE:  # Avoid painting black and blue pixels
-                        map_image.set_at((nx_pixel, ny_pixel), YELLOW)
-
+                    # Avoid painting black (obstacles) and blue (objects to fly over) pixels
+                    if current_color != BLACK and current_color != BLUE:
+                        map_image.set_at((nx_pixel, ny_pixel), YELLOW)  # Paint the pixel yellow
