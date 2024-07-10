@@ -12,6 +12,8 @@ This project is a simulation of a drone navigating through a map, avoiding obsta
 - **Map Painting**: The drone paints the map yellow in areas it has explored.
 - **Return to Start**: when reach 50% battery start return home. .
 - **Real-time Display**: The simulation updates in real-time, showing the drone's position, orientation, and flight time.
+- **use of sensors**:Uses sensor_range for obstacle detection, simulating sensor functionality in a 2D environment. 
+    sensor_range -This parameter defines the maximum distance (in pixels) that the drone can sense or consider when making movement decisions.
 
 ## Technologies Used
 
